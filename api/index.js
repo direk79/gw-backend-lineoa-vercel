@@ -12,13 +12,11 @@ const config = {
 
 const BASE_URL = process.env.BASE_URL;
 
-// Middleware ดักแยกแยกระหว่าง LINE (มี Signature) กับ Browser/Postman (ไม่มี Signature)
+// Middleware ดักแยกระหว่าง LINE กับ Postman/Browser
 const conditionalMiddleware = (req, res, next) => {
   if (req.headers['x-line-signature']) {
-    // ถ้ามาจาก LINE ให้ใช้ line.middleware ตัวเดียว (มัน parse body ให้แล้ว)
     return line.middleware(config)(req, res, next);
   }
-  // ถ้ายิงทดสอบทั่วไป ให้ใช้ express.json()
   return express.json()(req, res, next);
 };
 
@@ -26,7 +24,6 @@ app.post('/api', conditionalMiddleware, async (req, res) => {
   try {
     const events = req.body?.events;
 
-    // กรณี LINE กด Verify (events เป็น array ว่าง []) หรือรูปแบบไม่ใช่ array
     if (!Array.isArray(events)) {
       return res.status(200).json({ code: 200, result: "success", message: "No events or non-array" });
     }
@@ -41,22 +38,29 @@ app.post('/api', conditionalMiddleware, async (req, res) => {
         const text = message.text ? message.text.trim() : '';
 
         if (text.toLowerCase().startsWith('gw')) {
-          try {
-            await axios.post(`${BASE_URL}/gwcenter/api/v1/servicelineoa/matchuserline/`, {
-              userId: userId,
-              message: text
-            });
-          } catch (apiErr) {
-            console.error('Call External API Error:', apiErr.response?.data || apiErr.message);
+          if (!BASE_URL) {
+            console.error('BASE_URL is not defined in Environment Variables');
+          } else {
+            try {
+              // ตัด slash ต่อท้าย BASE_URL ป้องกัน URL ซ้ำซ้อน (เช่น //gwcenter)
+              const cleanBaseUrl = BASE_URL.replace(/\/+$/, '');
+              await axios.post(`${cleanBaseUrl}/gwcenter/api/v1/servicelineoa/matchuserline/`, {
+                userId: userId,
+                message: text
+              }, { timeout: 5000 });
+            } catch (apiErr) {
+              console.error('Call External API Error:', apiErr.response?.data || apiErr.message);
+            }
           }
         }
       }
     }
 
-    return res.status(200).json({ code: 200, result: "success", message: "", data: 0 });
+    return res.status(200).json({ code: 200, result: "success", message: "Processed successfully", data: 0 });
   } catch (error) {
-    console.error('Webhook Error:', error.message);
-    return res.status(200).json({ code: 200, result: "error", message: error.message });
+    console.error('Webhook Unhandled Error:', error.message);
+    // ส่ง 200 กลับพร้อมข้อความ error เพื่อไม่ให้ Postman/LINE ได้รับ 500
+    return res.status(200).json({ code: 500, result: "error", message: error.message });
   }
 });
 
