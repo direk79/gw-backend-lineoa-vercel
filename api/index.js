@@ -37,7 +37,7 @@ app.post('/api', conditionalMiddleware, async (req, res) => {
       if (type === 'message' && message?.type === 'text') {
         const text = message.text ? message.text.trim() : '';
 
-        if (text.toLowerCase().startsWith('gw')) {
+        if (text.toLowerCase().startsWith('gid')) {
           if (!BASE_URL) {
             console.error('BASE_URL is not defined in Environment Variables');
           } else {
