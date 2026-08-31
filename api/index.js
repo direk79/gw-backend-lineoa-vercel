@@ -15,54 +15,58 @@ const httpsAgent = new https.Agent({
   rejectUnauthorized: false 
 });
 
-// ใช้ middleware ของ LINE โดยตรง (LINE SDK จะ parse body ให้อัตโนมัติอยู่แล้ว)
 app.post('/api', line.middleware(config), async (req, res) => {
   try {
-    console.warn("x-01");
     const events = req.body?.events;
-    console.warn("x-02");
-    
-    if (!Array.isArray(events)) {
-      return res.status(200).json({ code: 200, result: "success", message: "No events or non-array" });
+    console.warn("a-1");
+    if (!Array.isArray(events) || events.length === 0) {
+      return res.status(200).json({ code: 200, result: "success", message: "No events" });
     }
-    
-    console.warn("x-03");
+    console.warn("a-2");
+
+    // 1. ตอบกลับ LINE ทันทีเพื่อป้องกันปัญหา LINE Webhook Timeout
+    res.status(200).json({ code: 200, result: "success", message: "Processed successfully" });
+    console.warn("a-3");
+    // 2. ทำงานเบื้องหลัง (Background Process)
     for (const event of events) {
       const { type, source, message } = event;
       const userId = source?.userId;
-
+      console.warn("a-4");
       if (!userId) continue;
 
       if (type === 'message' && message?.type === 'text') {
         const text = message.text ? message.text.trim() : '';
-        console.warn("x-04");
-        
+        console.warn("a-5");
         if (text.toLowerCase().startsWith('gid')) {
           try {
-            console.warn("x-05");
-            let cleanBaseUrl = "https://203.151.152.127/gwcenter/api/v1/servicelineoa/matchuserline/";
-            
-            await axios.post(cleanBaseUrl, {
+            console.warn("a-6");
+            const apiUrl = "https://203.151.152.127/gwcenter/api/v1/servicelineoa/matchuserline/";
+            console.warn(apiUrl);
+            console.warn(userId);
+            console.warn(text);
+            console.warn("a-7");
+            const response = await axios.post(apiUrl, {
               userId: userId,
               message: text
-            }, { 
-              timeout: 5000,
-              httpsAgent: httpsAgent 
+            }, {
+              headers: { 'Content-Type': 'application/json' },
+              timeout: 10000,
+              httpsAgent: httpsAgent
             });
-            
-            console.warn("x-06");
+            console.warn("a-8");
+            console.log('Call External API Success:', response.data);
           } catch (apiErr) {
-            console.warn("x-07");
             console.error('Call External API Error:', apiErr.response?.data || apiErr.message);
           }
         }
       }
     }
-    console.warn("x-08");
-    return res.status(200).json({ code: 200, result: "success", message: "Processed successfully", data: 0 });
+
   } catch (error) {
     console.error('Webhook Unhandled Error:', error.message);
-    return res.status(200).json({ code: 500, result: "error", message: error.message });
+    if (!res.headersSent) {
+      return res.status(500).json({ code: 500, result: "error", message: error.message });
+    }
   }
 });
 
