@@ -40,7 +40,7 @@ app.post('/api', line.middleware(config), async (req, res) => {
         if (text.toLowerCase().startsWith('gid')) {
           try {
             console.warn("a-6");
-            const apiUrl = "https://203.151.152.127/gwcenter/api/v1/servicelineoa/matchuserline/";
+            const apiUrl = "https://203.151.152.127/gwcenter/api/v1/servicelineoa/matchuserline";
             console.warn(apiUrl);
             console.warn(userId);
             console.warn(text);
