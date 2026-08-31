@@ -24,10 +24,7 @@ app.post('/api', line.middleware(config), async (req, res) => {
     }
     console.warn("a-2");
 
-    // 1. ตอบกลับ LINE ทันทีเพื่อป้องกันปัญหา LINE Webhook Timeout
-    res.status(200).json({ code: 200, result: "success", message: "Processed successfully" });
-    console.warn("a-3");
-    // 2. ทำงานเบื้องหลัง (Background Process)
+    // รันลูปให้จบก่อนส่ง Response กลับ (ป้องกัน Vercel Freeze Process)
     for (const event of events) {
       const { type, source, message } = event;
       const userId = source?.userId;
@@ -37,6 +34,8 @@ app.post('/api', line.middleware(config), async (req, res) => {
       if (type === 'message' && message?.type === 'text') {
         const text = message.text ? message.text.trim() : '';
         console.warn("a-5");
+        
+        // เช็กคำว่า gid แบบ Case-insensitive
         if (text.toLowerCase().startsWith('gid')) {
           try {
             console.warn("a-6");
@@ -45,6 +44,7 @@ app.post('/api', line.middleware(config), async (req, res) => {
             console.warn(userId);
             console.warn(text);
             console.warn("a-7");
+            
             const response = await axios.post(apiUrl, {
               userId: userId,
               message: text
@@ -53,6 +53,7 @@ app.post('/api', line.middleware(config), async (req, res) => {
               timeout: 10000,
               httpsAgent: httpsAgent
             });
+            
             console.warn("a-8");
             console.log('Call External API Success:', response.data);
           } catch (apiErr) {
@@ -61,6 +62,9 @@ app.post('/api', line.middleware(config), async (req, res) => {
         }
       }
     }
+
+    // สั่ง Response 200 กลับไปหา LINE Webhook หลังจากยิง API สำเร็จแล้ว
+    return res.status(200).json({ code: 200, result: "success", message: "Processed successfully" });
 
   } catch (error) {
     console.error('Webhook Unhandled Error:', error.message);
