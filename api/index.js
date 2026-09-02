@@ -3,7 +3,6 @@ const express = require('express');
 const line = require('@line/bot-sdk');
 const axios = require('axios');
 const https = require('https');
-// const { saveToGoogleSheet } = require('./sheet');
 
 const app = express();
 
@@ -40,6 +39,10 @@ app.post('/api', line.middleware(config), async (req, res) => {
         if (text.toLowerCase().startsWith('gid')) {
           try 
           {
+            console.warn("a-6");
+            console.warn(userId);
+            console.warn(text);
+
             await saveToGoogleSheet(
               userId,
               text
