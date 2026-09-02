@@ -2,7 +2,6 @@ require('dotenv').config();
 const express = require('express');
 const line = require('@line/bot-sdk');
 const axios = require('axios');
-const https = require('https');
 
 const app = express();
 
@@ -11,9 +10,13 @@ const config = {
   channelSecret: process.env.LINE_CHANNEL_SECRET || '',
 };
 
-const httpsAgent = new https.Agent({ 
-  rejectUnauthorized: false 
-});
+const dataSecret = {
+    channelId: '1654199238',
+    channelSecret: '529a6c6f0145b64da0d53ac4aabdc7a4',
+    channelAccessToken:
+      'rVhIclTPyeRsnySmqMHepvhIFCb4t7chxgwjP9t+lefj2WWWtdP1UiYJOiaAeVQTYHDkHvlBsm7UHs7jAXZdGO2c/mrzoSfPLmo1+T8ctUcUPNR7rDxY5Yylqugd5gVnwQh5eis4ZYGAeT3jKaJTtQdB04t89/1O/w1cDnyilFU=',
+};
+
 
 app.post('/api', line.middleware(config), async (req, res) => {
   try {
@@ -42,14 +45,22 @@ app.post('/api', line.middleware(config), async (req, res) => {
             console.warn("a-6");
             console.warn(userId);
             console.warn(text);
-
-            await saveToGoogleSheet(
+            //////////////////////////////////////////
+            const result = await saveToGoogleSheet(
               userId,
               text
             );
 
             console.warn("a-8");
-            console.log('Save Google Sheet Success');                
+            console.log('Save Google Sheet Success');
+
+            if (result && result.toString().trim() === 'OK') {
+              await sendMessageGWService(
+                  userId,
+                  '✅ ระบบได้รับข้อมูลของท่านเรียบร้อยแล้ว'
+              );
+              console.log('Notify User Success');
+            }          
           } catch (apiErr) {
             console.error('Save Google Sheet Error:', apiErr.response?.data || apiErr.message);
           }
@@ -79,11 +90,44 @@ async function saveToGoogleSheet(userId, message) {
   });
 
   console.log('Google Script Response:', response.data);
+
+  return response.data;
 }
 
-module.exports = {
-  saveToGoogleSheet
-};
+
+
+async function sendMessageGWService(userId, message) {
+    try {
+
+        await axios.post(
+            'https://api.line.me/v2/bot/message/push',
+            {
+                to: userId,
+                messages: [
+                    {
+                        type: 'text',
+                        text: message
+                    }
+                ]
+            },
+            {
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${dataSecret.channelAccessToken}`
+                }
+            }
+        );
+
+        return true;
+
+    } catch (error) {
+
+        console.error('Push Error:', error.message);
+
+        throw error;
+    }
+}
+
 
 const PORT = process.env.PORT || 3002;
 app.listen(PORT, () => {
