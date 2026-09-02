@@ -3,7 +3,7 @@ const express = require('express');
 const line = require('@line/bot-sdk');
 const axios = require('axios');
 const https = require('https');
-const { saveToGoogleSheet } = require('./sheet');
+// const { saveToGoogleSheet } = require('./sheet');
 
 const app = express();
 
@@ -64,6 +64,23 @@ app.post('/api', line.middleware(config), async (req, res) => {
     }
   }
 });
+
+
+async function saveToGoogleSheet(userId, message) {
+
+  const url = 'https://script.google.com/macros/s/AKfycbzvKN1sMklG3IAkQyzfw4cpBOwGY_174NkqGzWQX-sKuU8jCn8RQr20cUrQqYBcLOtWSQ/exec';
+
+  const response = await axios.post(url, {
+    userId,
+    message
+  });
+
+  console.log('Google Script Response:', response.data);
+}
+
+module.exports = {
+  saveToGoogleSheet
+};
 
 const PORT = process.env.PORT || 3002;
 app.listen(PORT, () => {
