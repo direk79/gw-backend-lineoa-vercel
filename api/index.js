@@ -3,6 +3,7 @@ const express = require('express');
 const line = require('@line/bot-sdk');
 const axios = require('axios');
 const https = require('https');
+const { saveToGoogleSheet } = require('./sheet');
 
 const app = express();
 
@@ -37,27 +38,17 @@ app.post('/api', line.middleware(config), async (req, res) => {
         
         // เช็กคำว่า gid แบบ Case-insensitive
         if (text.toLowerCase().startsWith('gid')) {
-          try {
-            console.warn("a-6");
-            const apiUrl = "https://203.151.152.127/gwcenter/api/v1/servicelineoa/matchuserline";
-            console.warn(apiUrl);
-            console.warn(userId);
-            console.warn(text);
-            console.warn("a-7");
-            
-            const response = await axios.post(apiUrl, {
-              userId: userId,
-              message: text
-            }, {
-              headers: { 'Content-Type': 'application/json' },
-              timeout: 10000,
-              httpsAgent: httpsAgent
-            });
-            
+          try 
+          {
+            await saveToGoogleSheet(
+              userId,
+              text
+            );
+
             console.warn("a-8");
-            console.log('Call External API Success:', response.data);
+            console.log('Save Google Sheet Success');                
           } catch (apiErr) {
-            console.error('Call External API Error:', apiErr.response?.data || apiErr.message);
+            console.error('Save Google Sheet Error:', apiErr.response?.data || apiErr.message);
           }
         }
       }
