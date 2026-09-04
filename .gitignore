@@ -1,4 +1,18 @@
+# dependencies
 node_modules
+
+# environment variables (ห้าม commit ไฟล์ที่มี secret จริง)
 .env
+.env.*
+!.env.example
+
+# vercel
 .vercel
-.env*
+
+# logs
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db

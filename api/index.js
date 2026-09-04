@@ -1,137 +1,24 @@
-require('dotenv').config();
-const express = require('express');
-const line = require('@line/bot-sdk');
-const axios = require('axios');
+'use strict';
 
-const app = express();
+// Entry point สำหรับ Vercel Serverless Function และรันแบบ local
+const { createApp } = require('../src/app');
+const { config, validateConfig } = require('../src/config');
 
-const config = {
-  channelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN || '',
-  channelSecret: process.env.LINE_CHANNEL_SECRET || '',
-};
+const app = createApp();
 
-const dataSecret = {
-    channelId: '1654199238',
-    channelSecret: '529a6c6f0145b64da0d53ac4aabdc7a4',
-    channelAccessToken:
-      'rVhIclTPyeRsnySmqMHepvhIFCb4t7chxgwjP9t+lefj2WWWtdP1UiYJOiaAeVQTYHDkHvlBsm7UHs7jAXZdGO2c/mrzoSfPLmo1+T8ctUcUPNR7rDxY5Yylqugd5gVnwQh5eis4ZYGAeT3jKaJTtQdB04t89/1O/w1cDnyilFU=',
-};
-
-
-app.post('/api', line.middleware(config), async (req, res) => {
+// รันเป็นเซิร์ฟเวอร์ปกติเฉพาะตอน local (Vercel จะ import app โดยไม่ listen)
+if (require.main === module) {
   try {
-    const events = req.body?.events;
-    console.warn("a-1");
-    if (!Array.isArray(events) || events.length === 0) {
-      return res.status(200).json({ code: 200, result: "success", message: "No events" });
-    }
-    console.warn("a-2");
-
-    // รันลูปให้จบก่อนส่ง Response กลับ (ป้องกัน Vercel Freeze Process)
-    for (const event of events) {
-      const { type, source, message } = event;
-      const userId = source?.userId;
-      console.warn("a-4");
-      if (!userId) continue;
-
-      if (type === 'message' && message?.type === 'text') {
-        const text = message.text ? message.text.trim() : '';
-        console.warn("a-5");
-        
-        // เช็กคำว่า gid แบบ Case-insensitive
-        if (text.toLowerCase().startsWith('gid')) {
-          try 
-          {
-            console.warn("a-6");
-            console.warn(userId);
-            console.warn(text);
-            //////////////////////////////////////////
-            const result = await saveToGoogleSheet(
-              userId,
-              text
-            );
-
-            console.warn("a-8");
-            console.log('Save Google Sheet Success');
-
-            if (result && result.toString().trim() === 'OK') {
-              await sendMessageGWService(
-                  userId,
-                  '✅ ระบบได้รับข้อมูลของท่านเรียบร้อยแล้ว'
-              );
-              console.log('Notify User Success');
-            }          
-          } catch (apiErr) {
-            console.error('Save Google Sheet Error:', apiErr.response?.data || apiErr.message);
-          }
-        }
-      }
-    }
-
-    // สั่ง Response 200 กลับไปหา LINE Webhook หลังจากยิง API สำเร็จแล้ว
-    return res.status(200).json({ code: 200, result: "success", message: "Processed successfully" });
-
-  } catch (error) {
-    console.error('Webhook Unhandled Error:', error.message);
-    if (!res.headersSent) {
-      return res.status(500).json({ code: 500, result: "error", message: error.message });
-    }
+    validateConfig();
+  } catch (err) {
+    console.error('Config Error:', err.message);
+    process.exit(1);
   }
-});
 
-
-async function saveToGoogleSheet(userId, message) {
-
-  const url = 'https://script.google.com/macros/s/AKfycbzvKN1sMklG3IAkQyzfw4cpBOwGY_174NkqGzWQX-sKuU8jCn8RQr20cUrQqYBcLOtWSQ/exec';
-
-  const response = await axios.post(url, {
-    userId,
-    message
+  const PORT = config.server.port;
+  app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
   });
-
-  console.log('Google Script Response:', response.data);
-
-  return response.data;
 }
-
-
-
-async function sendMessageGWService(userId, message) {
-    try {
-
-        await axios.post(
-            'https://api.line.me/v2/bot/message/push',
-            {
-                to: userId,
-                messages: [
-                    {
-                        type: 'text',
-                        text: message
-                    }
-                ]
-            },
-            {
-                headers: {
-                    'Content-Type': 'application/json',
-                    Authorization: `Bearer ${dataSecret.channelAccessToken}`
-                }
-            }
-        );
-
-        return true;
-
-    } catch (error) {
-
-        console.error('Push Error:', error.message);
-
-        throw error;
-    }
-}
-
-
-const PORT = process.env.PORT || 3002;
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
 
 module.exports = app;
